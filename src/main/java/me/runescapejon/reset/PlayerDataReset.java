@@ -21,7 +21,6 @@ import org.spongepowered.api.text.Text;
 public class PlayerDataReset {
 	@Inject
 	Game game;
-	String worldname = "world";
 
 	@Listener
 	public void onGameInitlization(GameInitializationEvent event) {
@@ -35,8 +34,8 @@ public class PlayerDataReset {
 		if (target.isOnline()) {
 			src.sendMessage(Text.of("The player need to be offline."));
 		} else {
-		//	this.deletedata(new File(worldname + "/playerdata", target.getUniqueId() + ".dat"));
-			this.deletedata(new File(Sponge.getServer().getDefaultWorld().get().getWorldName() + "/playerdata", target.getUniqueId() + ".dat"));
+			this.deletedata(new File(Sponge.getServer().getDefaultWorld().get().getWorldName() + "/playerdata",
+					target.getUniqueId() + ".dat"));
 			src.sendMessage(Text.of("Reset ", target.getName(), " Data"));
 		}
 		return CommandResult.success();
