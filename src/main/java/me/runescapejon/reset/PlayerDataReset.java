@@ -32,7 +32,7 @@ public class PlayerDataReset {
 	public CommandResult execute(CommandSource src, CommandContext args) throws CommandException {
 		User target = args.<User>getOne("Player").get();
 		if (target.isOnline()) {
-			src.sendMessage(Text.of("The player need to be offline."));
+			src.sendMessage(Text.of("The player needs to be offline."));
 		} else {
 			this.deletedata(new File(Sponge.getServer().getDefaultWorld().get().getWorldName() + "/playerdata",
 					target.getUniqueId() + ".dat"));
