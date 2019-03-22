@@ -63,7 +63,7 @@ public class PlayerDataReset {
 	}
 
 	@Listener
-	public void onGameInitlization(GameInitializationEvent event) {
+	public void onGameInitialization(GameInitializationEvent event) {
 		CommandSpec execute = CommandSpec.builder().executor(this::execute).permission("playerreset.data")
 				.arguments(GenericArguments.user(Text.of("Player"))).build();
 		Sponge.getCommandManager().register(this, execute, "reset");
