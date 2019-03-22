@@ -78,7 +78,7 @@ public class PlayerDataReset {
 					target.getUniqueId() + ".dat");
 			if (ConfigSettings.BackUpPlayerdata) {
 				String b = PlayerDataReset.getBackup().getPath();
-				src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.BackupMessage + b));
+				src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.BackupMessage.replace("%backupPath%", b)));
 				backupData(target, file);
 
 			}
@@ -147,11 +147,12 @@ public class PlayerDataReset {
 		if (!plugin.getConfigDirectory().exists()) {
 			plugin.getConfigDirectory().mkdirs();
 		}
+
 		try {
-			File configFile = new File(getConfigDirectory(), "Config.conf");
+			File configFile = new File(getConfigDirectory(), "config.conf");
 			if (!configFile.exists()) {
 				configFile.createNewFile();
-				logger.info("Creating Config for PlayerDataReset");
+				logger.info("Creating config for PlayerDataReset.");
 			}
 			ConfigurationLoader<CommentedConfigurationNode> loader = HoconConfigurationLoader.builder()
 					.setFile(configFile).build();
@@ -161,7 +162,7 @@ public class PlayerDataReset {
 			loader.save(config);
 			return true;
 		} catch (Exception error) {
-			getLogger().error("coudnt make the config", error);
+			getLogger().error("Error saving or loading the config.", error);
 
 			return false;
 		}
