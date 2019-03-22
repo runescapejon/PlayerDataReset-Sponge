@@ -9,7 +9,6 @@ import java.util.Date;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
-import org.spongepowered.api.Game;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
@@ -23,6 +22,7 @@ import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
+import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
@@ -41,9 +41,11 @@ public class PlayerDataReset {
 	public static PlayerDataReset instance;
 	private PlayerDataReset plugin;
 	private Logger logger;
-	private ConfigSettings configmsg;
-	GuiceObjectMapperFactory factory;
+	private ConfigSettings configMsg;
+	private GuiceObjectMapperFactory factory;
 	private final File configDirectory;
+	private static String playerdataPath;
+	private static String playerdataBackupPath;
 
 	@Inject
 	public PlayerDataReset(Logger logger, @ConfigDir(sharedRoot = false) File configDir,
@@ -62,61 +64,95 @@ public class PlayerDataReset {
 	}
 
 	@Listener
-	public void onGameInitlization(GameInitializationEvent event) {
+	public void onGameInitialization(GameInitializationEvent event) {
 		CommandSpec execute = CommandSpec.builder().executor(this::execute).permission("playerreset.data")
 				.arguments(GenericArguments.user(Text.of("Player"))).build();
 		Sponge.getCommandManager().register(this, execute, "reset");
 	}
 
+	@Listener
+	public void onServerStart(GameStartedServerEvent event) {
+		playerdataPath = Sponge.getServer().getDefaultWorld().get().getWorldName() + File.separatorChar + "playerdata";
+		playerdataBackupPath = playerdataPath + File.separatorChar + "backups";
+	}
+
 	public CommandResult execute(CommandSource src, CommandContext args) throws CommandException {
 		User target = args.<User>getOne("Player").get();
-		if (target.isOnline()) {
-			src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.OfflineMessage));
-		} else {
-			File file = new File(
-					Sponge.getServer().getDefaultWorld().get().getWorldName() + File.separatorChar + "playerdata",
-					target.getUniqueId() + ".dat");
-			if (ConfigSettings.BackUpPlayerdata) {
-				String b = PlayerDataReset.getBackup().getPath();
-				src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.BackupMessage + b));
-				backupData(target, file);
 
+		//only proceed if the target player is offline
+		if (target.isOnline()) {
+			src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.OfflineMessage
+                    .replace("%player%", target.getName())));
+		}
+		else {
+		    //get the path for the target playerdata file
+			File file = new File(playerdataPath,
+					target.getUniqueId() + ".dat");
+
+			if (ConfigSettings.BackUpPlayerdata) {
+			    //perform the playerdata backup and save the path of the new backup file
+                String backupFilePath = backupData(target, file);
+
+                //if the backup function returned a path, indicating the backup was successful, proceed
+				if(backupFilePath != null) {
+				    src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.BackupMessage
+                            .replace("%backupPath%", playerdataBackupPath  + File.separatorChar + backupFilePath)
+                            .replace("%player%", target.getName())));
+                }
+                else {
+                    //if the backup function returned null, the backup failed, and the delete must be aborted
+                    src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.BackupFailedMessage
+                            .replace("%player%", target.getName())));
+                    return CommandResult.success();
+                }
 			}
+
+			//try deleting the playerdata. if deletion is successful, send the success message
 			if (deleteData(file)) {
-				src.sendMessage(TextSerializers.FORMATTING_CODE
-						.deserialize(ConfigSettings.ResetMessage.replace("%player%", target.getName())));
+				src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.ResetMessage
+                        .replace("%player%", target.getName())));
 			}
+			else {
+			    //if deletion fails, send the failure message
+			    src.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(ConfigSettings.ResetFailedMessage
+                        .replace("%player%", target.getName())));
+            }
 
 		}
 		return CommandResult.success();
 	}
 
-	public static File getBackup() {
-		File file = new File(
-				Sponge.getServer().getDefaultWorld().get().getWorldName() + File.separatorChar + "playerdata",
-				"backups");
-		if (!file.exists())
-			file.mkdir();
-		return file;
-	}
-
-	private boolean backupData(User target, File file) {
-		if (!PlayerDataReset.getBackup().exists()) {
-			PlayerDataReset.getBackup().mkdirs();
-		}
+	//backs up a playerdata file
+    //User is the player whose playerdata is being backed up
+    //file is the playerdata file being backed up
+    //returns the filename of the new backup file if successful, or null if unsuccessful
+	private String backupData(User target, File file) {
+		//make sure the file being backed up exists and is a file
 		if (file.exists() && file.isFile()) {
+		    //get the current date and time to add to the backup filename
 			String dateAndTime = new SimpleDateFormat(" MM-dd-yyyy HH.mm.ss ").format(new Date());
-			File backupFile = new File(file.getParent() + File.separatorChar + "backups",
+
+			//create the backup file
+			File backupFile = new File(playerdataBackupPath,
 					target.getName() + dateAndTime + file.getName());
+			//create the backup file's directory path if it doesn't already exist
+			if(backupFile.getParentFile().exists()) {
+                backupFile.getParentFile().mkdirs();
+            }
+
+			//perform the actual file copy
 			try {
 				Files.copy(file.toPath(), backupFile.toPath(), StandardCopyOption.COPY_ATTRIBUTES);
 			} catch (IOException e) {
-				return null != null;
+			    //if the file copy threw an exception, return null to indicate the backup failed
+				return null;
 			}
 
-			return backupFile.getName() != null;
+			//if the copy was a success, return the filename of the new backup file
+			return backupFile.getName();
 		} else
-			return null != null;
+		    //if the playerdata file doesn't exist or is a directory, return null to indicate the backup failed
+			return null;
 	}
 
 	private boolean deleteData(File file) {
@@ -135,7 +171,7 @@ public class PlayerDataReset {
 	}
 
 	public ConfigSettings getConfigSettingsCfg() {
-		return configmsg;
+		return configMsg;
 	}
 
 	@Listener
@@ -147,21 +183,23 @@ public class PlayerDataReset {
 		if (!plugin.getConfigDirectory().exists()) {
 			plugin.getConfigDirectory().mkdirs();
 		}
+
 		try {
-			File configFile = new File(getConfigDirectory(), "Config.conf");
+			File configFile = new File(getConfigDirectory(), "config.conf");
 			if (!configFile.exists()) {
 				configFile.createNewFile();
-				logger.info("Creating Config for PlayerDataReset");
+				logger.info("Creating config for PlayerDataReset.");
 			}
+
 			ConfigurationLoader<CommentedConfigurationNode> loader = HoconConfigurationLoader.builder()
 					.setFile(configFile).build();
 			CommentedConfigurationNode config = loader.load(ConfigurationOptions.defaults()
 					.setObjectMapperFactory(plugin.getFactory()).setShouldCopyDefaults(true));
-			configmsg = config.getValue(TypeToken.of(ConfigSettings.class), new ConfigSettings());
+			configMsg = config.getValue(TypeToken.of(ConfigSettings.class), new ConfigSettings());
 			loader.save(config);
 			return true;
 		} catch (Exception error) {
-			getLogger().error("coudnt make the config", error);
+			getLogger().error("Error saving or loading the config.", error);
 
 			return false;
 		}
