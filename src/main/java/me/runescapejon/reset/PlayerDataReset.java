@@ -35,7 +35,7 @@ import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.GuiceObjectMapperFactory;
 
-@Plugin(id = "playerdatareset-plugin", name = "PlayerDataReset-Plugin", description = "PlayerDataReset Plugin", version = "1.1")
+@Plugin(id = "playerdatareset-plugin", name = "PlayerDataReset-Plugin", description = "PlayerDataReset Plugin", version = "1.2")
 public class PlayerDataReset {
 
 	public static PlayerDataReset instance;
