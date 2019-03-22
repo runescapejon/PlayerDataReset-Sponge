@@ -22,6 +22,7 @@ import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
+import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
@@ -67,7 +68,10 @@ public class PlayerDataReset {
 		CommandSpec execute = CommandSpec.builder().executor(this::execute).permission("playerreset.data")
 				.arguments(GenericArguments.user(Text.of("Player"))).build();
 		Sponge.getCommandManager().register(this, execute, "reset");
+	}
 
+	@Listener
+	public void onServerStart(GameStartedServerEvent event) {
 		playerdataPath = Sponge.getServer().getDefaultWorld().get().getWorldName() + File.separatorChar + "playerdata";
 		playerdataBackupPath = playerdataPath + File.separatorChar + "backups";
 	}
